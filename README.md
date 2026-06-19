@@ -31,7 +31,7 @@ There are 3 tasks, each building on the last:
 Tasks 2 and 3 require entity objects to hold the relational query results.
 The querying approach is up to you — just ensure each method returns a list of the required objects.
 
-Implement all functions in [jdbc_exercise.py](jdbc_exercise.py).
+Implement all functions in [exercise.py](exercise.py).
 
 For an example of how to create a context manager in Python, see [context_tutorial.py](context_tutorial.py).
 You'll need this for `create_connection` to ensure the connection is closed automatically after use.
