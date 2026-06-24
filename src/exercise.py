@@ -1,30 +1,21 @@
 from contextlib import contextmanager
-from typing import Generator
+from collections.abc import Generator
 
-import psycopg2
-import psycopg2.extensions
+from psycopg2 import connect
+from psycopg2.extensions import connection as Connection
+from psycopg2.extras import RealDictCursor
 
-from entities import ConnectionConfig, Actor, Movie
+from entities import Actor, ConnectionConfig, Movie  # pyright: ignore[reportImplicitRelativeImport]
 
 
 @contextmanager
 def create_connection(
     config: ConnectionConfig,
-) -> Generator[psycopg2.extensions.connection, None, None]:
-    """
-    Context manager that opens a psycopg2 connection and closes it on exit.
-
-    Usage:
-        with create_connection(config) as conn:
-            ...
-    """
-    raise NotImplementedError
+) -> Generator[Connection, None, None]:
+    yield connect(**{("user" if k == "username" else k): v for k, v in config.model_dump().items()})  # pyright: ignore[reportAny]
 
 
-
-def query_movies(
-    connection: psycopg2.extensions.connection, keywords: str
-) -> list[Movie]:
+def query_movies(conn: Connection, keywords: str) -> list[Movie]:
     """
     Return all movies whose title contains *keywords* (case-insensitive).
 
@@ -32,12 +23,43 @@ def query_movies(
     Each movie's actor_names list is sorted alphabetically.
     """
 
-    raise NotImplementedError
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    cursor.execute(
+        """
+            SELECT
+                t.tconst, t."primaryTitle" AS title, t.genres, t."startYear" AS year
+            FROM tmovies t
+            WHERE t."primaryTitle" ILIKE %s
+            ORDER BY t."primaryTitle" ASC, t."startYear" ASC
+        """,
+        [f"%{keywords}%"],
+    )
+
+    movies: dict[str, Movie] = {rec["tconst"]: Movie.model_validate(rec) for rec in cursor}
+
+    cursor.execute(
+        """
+            SELECT t.tconst, n.primaryname AS name
+            FROM
+                tmovies t
+                JOIN tprincipals p ON p.tconst = t.tconst
+                    AND p.category IN ('actor', 'actress')
+                JOIN nbasics n ON n.nconst = p.nconst
+            WHERE
+                t.tconst IN (%s)
+        """,
+        [",".join(movies.keys())],
+    )
+
+    for tconst in movies.keys():
+        movies[tconst].actor_names = [rec["name"] for rec in cursor if rec["tconst"] == tconst]
+        movies[tconst].actor_names.sort()
+
+    return [*movies.values()]
 
 
-def query_actors(
-    connection: psycopg2.extensions.connection, keywords: str
-) -> list[Actor]:
+def query_actors(conn: Connection, keywords: str) -> list[Actor]:
     """
     Return the 5 most relevant actors/actresses whose name contains *keywords*.
 
