@@ -22,39 +22,39 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
     Sorted by title ASC, then year ASC (NULLs last).
     Each movie's actor_names list is sorted alphabetically.
     """
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
 
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(
+            """
+                SELECT
+                    t.tconst, t."primaryTitle" AS title, t.genres, t."startYear" AS year
+                FROM tmovies t
+                WHERE t."primaryTitle" ILIKE %s
+                ORDER BY t."primaryTitle" ASC, t."startYear" ASC
+            """,
+            [f"%{keywords}%"],
+        )
 
-    cursor.execute(
-        """
-            SELECT
-                t.tconst, t."primaryTitle" AS title, t.genres, t."startYear" AS year
-            FROM tmovies t
-            WHERE t."primaryTitle" ILIKE %s
-            ORDER BY t."primaryTitle" ASC, t."startYear" ASC
-        """,
-        [f"%{keywords}%"],
-    )
+        movies: dict[str, Movie] = {rec["tconst"]: Movie.model_validate(rec) for rec in cursor}
 
-    movies: dict[str, Movie] = {rec["tconst"]: Movie.model_validate(rec) for rec in cursor}
+        cursor.execute(
+            """
+                SELECT t.tconst, n.primaryname AS name
+                FROM
+                    tmovies t
+                    JOIN tprincipals p ON p.tconst = t.tconst
+                        AND p.category IN ('actor', 'actress')
+                    JOIN nbasics n ON n.nconst = p.nconst
+                WHERE
+                    t.tconst IN (%s)
+            """,
+            [",".join(movies.keys())],
+        )
 
-    cursor.execute(
-        """
-            SELECT t.tconst, n.primaryname AS name
-            FROM
-                tmovies t
-                JOIN tprincipals p ON p.tconst = t.tconst
-                    AND p.category IN ('actor', 'actress')
-                JOIN nbasics n ON n.nconst = p.nconst
-            WHERE
-                t.tconst IN (%s)
-        """,
-        [",".join(movies.keys())],
-    )
+        for tconst in movies.keys():
+            movies[tconst].actor_names = [rec["name"] for rec in cursor if rec["tconst"] == tconst]
+            movies[tconst].actor_names.sort()
 
-    for tconst in movies.keys():
-        movies[tconst].actor_names = [rec["name"] for rec in cursor if rec["tconst"] == tconst]
-        movies[tconst].actor_names.sort()
 
     return [*movies.values()]
 
