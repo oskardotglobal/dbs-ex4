@@ -1,18 +1,27 @@
-from contextlib import contextmanager
 from collections.abc import Generator
+from contextlib import contextmanager
 
 from psycopg2 import connect
 from psycopg2.extensions import connection as Connection
 from psycopg2.extras import RealDictCursor
 
-from entities import Actor, ConnectionConfig, Movie  # pyright: ignore[reportImplicitRelativeImport]
+from entities import (  # pyright: ignore[reportImplicitRelativeImport]
+    Actor,
+    ConnectionConfig,
+    Movie,
+)
 
 
 @contextmanager
 def create_connection(
     config: ConnectionConfig,
 ) -> Generator[Connection, None, None]:
-    yield connect(**{("user" if k == "username" else k): v for k, v in config.model_dump().items()})  # pyright: ignore[reportAny]
+    yield connect(
+        **{
+            ("user" if k == "username" else k): v
+            for k, v in config.model_dump().items()
+        }
+    )  # pyright: ignore[reportAny]
 
 
 def query_movies(conn: Connection, keywords: str) -> list[Movie]:
@@ -23,7 +32,6 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
     Each movie's actor_names list is sorted alphabetically.
     """
     with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-
         cursor.execute(
             """
                 SELECT
@@ -35,7 +43,9 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
             [f"%{keywords}%"],
         )
 
-        movies: dict[str, Movie] = {rec["tconst"]: Movie.model_validate(rec) for rec in cursor}
+        movies: dict[str, Movie] = {
+            rec["tconst"]: Movie.model_validate(rec) for rec in cursor
+        }
 
         cursor.execute(
             """
@@ -52,9 +62,10 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
         )
 
         for tconst in movies.keys():
-            movies[tconst].actor_names = [rec["name"] for rec in cursor if rec["tconst"] == tconst]
+            movies[tconst].actor_names = [
+                rec["name"] for rec in cursor if rec["tconst"] == tconst
+            ]
             movies[tconst].actor_names.sort()
-
 
     return [*movies.values()]
 

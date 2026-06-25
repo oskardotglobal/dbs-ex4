@@ -1,4 +1,4 @@
-from typing import Optional, List, Set, Dict
+from typing import Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,12 +13,14 @@ class ConnectionConfig(BaseSettings):
     username: str
     password: str
 
+
 class Movie(BaseModel):
     tconst: str
     title: str
     year: Optional[int]
     genres: Set[str]
     actor_names: List[str] = Field(default_factory=list)
+
 
 class Actor(BaseModel):
     nconst: str

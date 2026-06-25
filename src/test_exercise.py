@@ -1,11 +1,11 @@
 import pytest
+
+from entities import Actor, ConnectionConfig, Movie
 from exercise import (
     create_connection,
     query_actors,
     query_movies,
 )
-
-from entities import ConnectionConfig, Movie, Actor
 
 # ---------------------------------------------------------------------------
 # Movie and Actor fixtures
@@ -17,9 +17,17 @@ ANH_1977 = Movie(
     year=1977,
     genres={"Action", "Adventure", "Fantasy"},
     actor_names=[
-        'Alec Guinness', 'Anthony Daniels', 'Carrie Fisher', 'David Prowse', 'Harrison Ford', 'Kenny Baker',
-        'Mark Hamill', 'Peter Cushing', 'Peter Mayhew', 'Phil Brown'
-    ]
+        "Alec Guinness",
+        "Anthony Daniels",
+        "Carrie Fisher",
+        "David Prowse",
+        "Harrison Ford",
+        "Kenny Baker",
+        "Mark Hamill",
+        "Peter Cushing",
+        "Peter Mayhew",
+        "Phil Brown",
+    ],
 )
 
 ANNE_HATHAWAY = Actor(nconst="nm0004266", name="Anne Hathaway")
@@ -63,7 +71,6 @@ def test_connect_database(config: ConnectionConfig) -> None:
 
 
 class TestMovies:
-
     def test_query_movies4_a_new_hope(self, config: ConnectionConfig) -> None:
         with create_connection(config) as conn:
             results = query_movies(conn, "A New Hope")
@@ -71,7 +78,6 @@ class TestMovies:
 
 
 class TestActors:
-
     def test_query_actors1_anne_hathaway(self, config: ConnectionConfig) -> None:
         with create_connection(config) as conn:
             results = query_actors(conn, "Anne Hathaway")
