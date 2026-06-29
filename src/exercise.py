@@ -1,6 +1,5 @@
 from collections.abc import Generator
 from contextlib import contextmanager
-from turtle import title
 
 from psycopg2 import connect
 from psycopg2.extensions import connection as Connection
@@ -88,15 +87,11 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
             """
             select
                	n.primaryname as name,
-               	n.nconst,
-               	(array_agg(t.tconst))[1:5] as played_in,
-                'test' as costar_name_to_count
+               	n.nconst as nconst
             from
            	    tprincipals t
                	join nbasics n
                	on t.nconst = n.nconst
-               	join tmovies t2
-               	on t.tconst = t2.tconst
             where
                	n.primaryname ilike %s and
                	t.category IN ('actor', 'actress')
@@ -104,35 +99,42 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
            	    n.nconst
             order by
                 cardinality(array_agg(t.tconst)) desc, n.primaryname asc
-                limit 5;
+            limit 5;
             """,
             [f"%{keywords}%"],
         )
 
-        actors: dict[str, tuple[Actor, list[str]]] = {
+        actors: dict[str, Actor] = {
             rec["nconst"]: (
-                Actor.model_validate({"nconst": rec["nconst"], "name": rec["name"]}),
-                rec["played_in"],
+                Actor.model_validate({"nconst": rec["nconst"], "name": rec["name"]})
             )
             for rec in cursor
         }
 
+        # For every actor
         for actor_id in actors:
+            # Get films in which the actor has appeared
             cursor.execute(
                 """
                     select
-                        t.tconst,
-                        t."primaryTitle" AS title,
-                        t.genres,
-                        t."startYear" AS year
-                    FROM
-                        tmovies t
-                    WHERE
-                        t.tconst = Any (%s);
+                       	t2."primaryTitle" as title
+                    from
+                       	tprincipals t
+                       	join tmovies t2
+                       	on t.tconst = t2.tconst
+                    where
+                       	t.nconst = %s and
+                       	t.category IN ('actor', 'actress')
+                    order by
+                       	t2."startYear" desc nulls last,
+                       	t2."primaryTitle"
+                    limit 5;
                 """,
-                [actors[actor_id][1]],
+                [actor_id],
             )
-            actors[actor_id][0].played_in = [res["title"] for res in cursor]
+            actors[actor_id].played_in = [res["title"] for res in cursor]
+
+            # Get all costars with count
             cursor.execute(
                 """
                 select
@@ -160,36 +162,7 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
             """,
                 [actor_id, actor_id],
             )
-            actors[actor_id][0].costar_name_to_count = {
+            actors[actor_id].costar_name_to_count = {
                 rec["name"]: rec["anzahl"] for rec in cursor
             }
-            print(actors[actor_id][0].played_in)
-    return [actor for actor, _ in actors.values()]
-
-
-"""
-select
-	n.primaryname as name,
-	n.nconst,
-	(array_agg(t.tconst)) [1:5] as movie_ids
-from
-	tprincipals t
-	join nbasics n
-	on t.nconst = n.nconst
-	join tmovies t2
-	on t.tconst = t2.tconst
-where
-	n.primaryname like '%Anne Hathaway%' and
-	t.category IN ('actor', 'actress')
-group by
-	n.nconst
-order by cardinality(array_agg(t.tconst)) desc, n.primaryname asc
-limit 5;
-
-
-
-
-select t.tconst, t."primaryTitle" AS title, t.genres, t."startYear" AS year
-FROM tmovies t
-WHERE t.tconst = 'tt7456312'
-"""
+    return [actor for actor in actors.values()]
