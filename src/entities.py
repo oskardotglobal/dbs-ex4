@@ -25,5 +25,5 @@ class Movie(BaseModel):
 class Actor(BaseModel):
     nconst: str
     name: str
-    played_in: List = Field(default_factory=list)
+    played_in: List[str] = Field(default_factory=list)
     costar_name_to_count: Dict[str, int] = Field(default_factory=dict)

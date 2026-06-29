@@ -1,5 +1,6 @@
 from collections.abc import Generator
 from contextlib import contextmanager
+from turtle import title
 
 from psycopg2 import connect
 from psycopg2.extensions import connection as Connection
@@ -82,4 +83,113 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
     All limits and ordering are enforced in SQL.
     """
 
-    raise NotImplementedError
+    with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(
+            """
+            select
+               	n.primaryname as name,
+               	n.nconst,
+               	(array_agg(t.tconst))[1:5] as played_in,
+                'test' as costar_name_to_count
+            from
+           	    tprincipals t
+               	join nbasics n
+               	on t.nconst = n.nconst
+               	join tmovies t2
+               	on t.tconst = t2.tconst
+            where
+               	n.primaryname ilike %s and
+               	t.category IN ('actor', 'actress')
+            group by
+           	    n.nconst
+            order by
+                cardinality(array_agg(t.tconst)) desc, n.primaryname asc
+                limit 5;
+            """,
+            [f"%{keywords}%"],
+        )
+
+        actors: dict[str, tuple[Actor, list[str]]] = {
+            rec["nconst"]: (
+                Actor.model_validate({"nconst": rec["nconst"], "name": rec["name"]}),
+                rec["played_in"],
+            )
+            for rec in cursor
+        }
+
+        for actor_id in actors:
+            cursor.execute(
+                """
+                    select
+                        t.tconst,
+                        t."primaryTitle" AS title,
+                        t.genres,
+                        t."startYear" AS year
+                    FROM
+                        tmovies t
+                    WHERE
+                        t.tconst = Any (%s);
+                """,
+                [actors[actor_id][1]],
+            )
+            actors[actor_id][0].played_in = [res["title"] for res in cursor]
+            cursor.execute(
+                """
+                select
+                   	n.primaryname as name,
+                   	count(distinct costar.tconst) as anzahl
+                from
+                   	tprincipals tp
+                   	join tmovies t
+                   	on tp.tconst = t.tconst
+                   	join tprincipals costar
+                   	on t.tconst = costar.tconst
+                   	join nbasics n
+                   	on costar.nconst = n.nconst
+                where
+                   	tp.nconst = %s and
+                   	tp.category IN ('actor', 'actress') and
+                   	costar.nconst  <> %s and
+                   	costar.category IN ('actor', 'actress')
+                group by
+                   	n.nconst
+                order by
+                   	anzahl desc,
+                   	n.primaryname asc
+                limit 5;
+            """,
+                [actor_id, actor_id],
+            )
+            actors[actor_id][0].costar_name_to_count = {
+                rec["name"]: rec["anzahl"] for rec in cursor
+            }
+            print(actors[actor_id][0].played_in)
+    return [actor for actor, _ in actors.values()]
+
+
+"""
+select
+	n.primaryname as name,
+	n.nconst,
+	(array_agg(t.tconst)) [1:5] as movie_ids
+from
+	tprincipals t
+	join nbasics n
+	on t.nconst = n.nconst
+	join tmovies t2
+	on t.tconst = t2.tconst
+where
+	n.primaryname like '%Anne Hathaway%' and
+	t.category IN ('actor', 'actress')
+group by
+	n.nconst
+order by cardinality(array_agg(t.tconst)) desc, n.primaryname asc
+limit 5;
+
+
+
+
+select t.tconst, t."primaryTitle" AS title, t.genres, t."startYear" AS year
+FROM tmovies t
+WHERE t.tconst = 'tt7456312'
+"""
