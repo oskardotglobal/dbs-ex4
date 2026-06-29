@@ -12,6 +12,18 @@ uv sync
 
 If you do not already have a Python interpreter installed, `uv` will install one for you.
 
+Now, copy the `.env.example` to a new file called `.env`. If you've set up postgres with the IMDB database locally already, update the `.env` with the correct username and password. Otherwise, use
+
+```env
+HOST=dbs.hpi.church
+PORT=5432
+DATABASE=imdb
+USERNAME=aal
+PASSWORD=semi-secret
+```
+
+Replace `semi-secret` with the password from the Signal group.
+
 ## Working on Your Implementation
 
 There are 3 tasks, each building on the last:
