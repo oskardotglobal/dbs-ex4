@@ -5,7 +5,7 @@ from psycopg2 import connect
 from psycopg2.extensions import connection as Connection
 from psycopg2.extras import RealDictCursor
 
-from entities import (  # pyright: ignore[reportImplicitRelativeImport]
+from entities import (
     Actor,
     ConnectionConfig,
     Movie,
@@ -16,12 +16,7 @@ from entities import (  # pyright: ignore[reportImplicitRelativeImport]
 def create_connection(
     config: ConnectionConfig,
 ) -> Generator[Connection, None, None]:
-    yield connect(
-        **{
-            ("user" if k == "username" else k): v
-            for k, v in config.model_dump().items()
-        }
-    )  # pyright: ignore[reportAny]
+    yield connect(**{("user" if k == "username" else k): v for k, v in config.model_dump().items()})
 
 
 def query_movies(conn: Connection, keywords: str) -> list[Movie]:
@@ -43,9 +38,7 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
             [f"%{keywords}%"],
         )
 
-        movies: dict[str, Movie] = {
-            rec["tconst"]: Movie.model_validate(rec) for rec in cursor
-        }
+        movies: dict[str, Movie] = {rec["tconst"]: Movie.model_validate(rec) for rec in cursor}
 
         cursor.execute(
             """
@@ -62,9 +55,7 @@ def query_movies(conn: Connection, keywords: str) -> list[Movie]:
         )
 
         for tconst in movies.keys():
-            movies[tconst].actor_names = [
-                rec["name"] for rec in cursor if rec["tconst"] == tconst
-            ]
+            movies[tconst].actor_names = [rec["name"] for rec in cursor if rec["tconst"] == tconst]
             movies[tconst].actor_names.sort()
 
     return [*movies.values()]
@@ -104,12 +95,7 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
             [f"%{keywords}%"],
         )
 
-        actors: dict[str, Actor] = {
-            rec["nconst"]: (
-                Actor.model_validate({"nconst": rec["nconst"], "name": rec["name"]})
-            )
-            for rec in cursor
-        }
+        actors: dict[str, Actor] = {rec["nconst"]: (Actor.model_validate({"nconst": rec["nconst"], "name": rec["name"]})) for rec in cursor}
 
         # For every actor
         for actor_id in actors:
@@ -162,7 +148,5 @@ def query_actors(conn: Connection, keywords: str) -> list[Actor]:
             """,
                 [actor_id, actor_id],
             )
-            actors[actor_id].costar_name_to_count = {
-                rec["name"]: rec["anzahl"] for rec in cursor
-            }
+            actors[actor_id].costar_name_to_count = {rec["name"]: rec["anzahl"] for rec in cursor}
     return [actor for actor in actors.values()]
