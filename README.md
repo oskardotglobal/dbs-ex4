@@ -4,21 +4,13 @@ This is the exercise repository for the Database Systems I course in the IT Syst
 The exercise covers how to programmatically connect to a DBMS and query data.
 We use Python for ease of development — specifically [psycopg2](https://www.psycopg.org/docs/) to connect to a PostgreSQL database.
 
-To set up the Python environment, run:
+To set up the Python environment, [install UV](https://docs.astral.sh/uv/getting-started/installation/), then run in your terminal:
 
-```
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+```sh
+uv sync
 ```
 
-If you haven't created the database yet and want to use Docker, download `IMDB.pgdbdump` first, then run:
-
-```
-docker compose up -d
-docker exec -i dbs1_imdb pg_restore --username=postgres --dbname=imdb < "path/to/IMDB.pgdbdump"
-```
-
+If you do not already have a Python interpreter installed, `uv` will install one for you.
 
 ## Working on Your Implementation
 
@@ -47,7 +39,7 @@ JetBrains IDEs detect tests automatically — click the green arrow next to a te
 You can also run tests from the terminal with:
 
 ```
-pytest
+uv run pytest
 ```
 
 To step through your implementation interactively, use the debugger in your IDE. In JetBrains products, click the debug button next to any test.
