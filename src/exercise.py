@@ -16,7 +16,12 @@ from entities import (
 def create_connection(
     config: ConnectionConfig,
 ) -> Generator[Connection, None, None]:
-    yield connect(**{("user" if k == "username" else k): v for k, v in config.model_dump().items()})
+    conn: Connection
+    try:
+        conn = connect(**{("user" if k == "username" else k): v for k, v in config})
+        yield conn
+    finally:
+        conn.close()
 
 
 def query_movies(conn: Connection, keywords: str) -> list[Movie]:
